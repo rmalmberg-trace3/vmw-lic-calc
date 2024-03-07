@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+
+    <head>
+        <script type="text/javascript">
+            // vSAN minimum, maximums, and available disk sizes
+            var vSAN = {
+                maxDisks: 24,
+                minDisks: 2,
+                diskSizes: [
+                    "1.92TB",
+                    "3.84TB", 
+                    "7.68TB"
+                ],
+                embeddedTiB: {
+                    VCF: 1,
+                    VVF: 0.097
+                }
+            };
+
+            // VMware license options
+            var license = {
+                vSphere: {
+                    VCF: "VMware Cloud Foundation",
+                    VVF: "VMware vSphere Foundation",
+                    VVS: "VMware vSphere Standard",
+                    VVEP: "vSphere Essentials Plus"
+                },
+                vSAN: {
+                    vSAN: "vSAN capacity add-on (TiB)"
+                },
+                minCores: 16,
+                terms: {
+                    3: "3-year",
+                    1: "1-year"
+                }
+            };
+
+            // List prices
+            var listPrice = {
+                VCF: {
+                    3: 350 * 3, 
+                    1: 350 * 2
+                },
+                VVF: {
+                    3: 135 * 3,
+                    1: 135 * 2,
+                },
+                VVS: {
+                    3: 50 * 3,
+                    1: 50 * 2
+                },
+                VVEP: {
+                    3: 35 * 3,
+                    1: 35 * 2
+                },
+                vSAN: {
+                    3: 210 * 3,
+                    1: 210 * 2
+                }
+            }
+        </script>
+
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>VMware License Calculator</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+        <style>
+            .bd-example {
+                --bd-example-padding: 1rem;
+                border-radius: var(--bs-border-radius);
+                position: relative;
+                padding: var(--bd-example-padding);
+                border: solid var(--bs-border-color);
+                border-width: 1px;
+            }
+        </style>
+    </head>
+
+    <body onload="onLoad();">
+        <div class="container">
+            <header class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
+                <a href="" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none">
+                    <img id="logo" src="Trace3_logo_White-Blue.png" height="32px" />
+                    <span class="fs-2 ms-3">VMware License Calculator</span>
+                </a>
+
+                <ul class="nav nav-pills">
+                    <li class="nav-item mx-1"><a id="nav-fullview" href="javascript:switchView('fullview');" class="nav-link active" aria-current="page">Full View</a></li>
+                    <li class="nav-item mx-1"><a id="nav-clusters" href="javascript:switchView('clusters');" class="nav-link" aria-current="page">Clusters</a></li>
+                    <li class="nav-item mx-1"><a id="nav-results" href="javascript:switchView('results');" class="nav-link">Results</a></li>
+                    <li class="nav-item mx-1"><a href="#" class="nav-link bg-secondary-subtle">Import Saved</a></li>
+                </ul>
+            </header>
+        </div>
+
+        <div class="container mb-5" id="containerClusters">
+            <h1>Clusters</h1>
+            <div class="bd-example">
+                <table class="table" id="tableClusters">
+                    <thead>
+                    <tr>
+                        <th scope="col">Cluster Name</th>
+                        <th scope="col">Hosts</th>
+                        <th scope="col">CPUs/host</th>
+                        <th scope="col">Cores/CPU</th>
+                        <th scope="col">vSAN</th>
+                        <th scope="col">vSAN Disks</th>
+                        <th scope="col">Disk Size (TB)</th>
+                        <th scope="col">License</th>
+                        <th scope="col">&nbsp;</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+                <button type="button" class="btn btn-primary" id="btnAddCluster">Add Cluster</button>
+              </div>
+        </div>
+
+        <div class="container" id="containerResults">
+            <h1>Results</h1>
+            <div class="bd-example">
+                <table class="table" id="tableResults">
+                    <thead>
+                    <tr>
+                        <th scope="col">License</th>
+                        <th scope="col">Qty</th>
+                        <th scope="col">Term</th>
+                        <th scope="col">Price/unit</th>
+                        <th scope="col">Subtotal</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+              </div>
+        </div>
+
+        <footer class="fixed-bottom d-flex flex-wrap justify-content-between align-items-center my-3 border-top">
+            <div class="ms-5 pt-3 col-md-7 d-flex align-items-center">
+                <span class="mb-3 mb-md-0 text-body-secondary">Created by <a href="mailto:ryan.malmberg@trace3.com">Ryan Malmberg</a>. This utility is a best effort and accuracy may not be perfect. Please validate all results.</span>
+            </div>
+            <div class="me-5 pt-3 nav col-md-4 justify-content-end list-unstyled d-flex">
+                <div class="bottom-0 end-0 bd-mode-toggle">
+                    <button id="bd-theme" class="btn btn-primary d-flex align-items-center" id="bd-theme" type="button" aria-expanded="false" data-bs-toggle="dropdown" aria-label="Toggle theme (dark)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-moon-stars-fill" viewBox="0 0 16 16">
+                            <path id="btnTheme1" d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/>
+                            <path id="btnTheme2" d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </footer>
+        
+        <script type="text/javascript">
+            // Toggle interface mode between dark and light
+            function toggleTheme() {
+                if (document.documentElement.getAttribute("data-bs-theme") == "dark") {
+                    // Switch Bootstrap theme
+                    document.documentElement.setAttribute("data-bs-theme", "light");
+                    // Change logo
+                    document.getElementById("logo").setAttribute("src", "Trace3_logo_Black-Blue.png");
+                    // Change toggle icon
+                    document.getElementById("btnTheme1").setAttribute("d", "M12 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708");
+                    document.getElementById("btnTheme2").setAttribute("d", "");
+                    // Save choice to local
+                    localStorage.setItem("theme", "light");
+                } else {
+                    // Switch Bootstrap theme
+                    document.documentElement.setAttribute("data-bs-theme", "dark");
+                    // Change logo
+                    document.getElementById("logo").setAttribute("src", "Trace3_logo_White-Blue.png");
+                    // Change toggle icon
+                    document.getElementById("btnTheme1").setAttribute("d", "M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278");
+                    document.getElementById("btnTheme2").setAttribute("d", "M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z");
+                    // Save choice to local
+                    localStorage.setItem("theme", "dark");
+                }
+            }
+
+            // Apply user's media preference. Check if a local setting exists and use that else default to device setting
+            function onLoad() {
+                // Theme
+                var theme = localStorage.getItem("theme");
+                if (typeof theme !== "undefined" && theme === "light") {
+                    // Switch to light theme if local setting
+                    toggleTheme();
+                } else if (!window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                    // Switch to light theme if device preference
+                    toggleTheme();
+                }
+
+                // Prepare first cluster
+                addCluster();
+
+                // Create results table rows
+                var table = document.getElementById("tableResults").getElementsByTagName("tbody")[0];
+                var cells = {};
+                var cellID = ["name", "qty", "terms", "cost", "subtotal"];
+                var term;
+                var termDefault = parseInt(Object.keys(license.terms).pop());
+                var price,
+                    newRow;
+
+                // Create vSphere rows
+                for (var vSphere in license.vSphere) {
+                    newRow = table.insertRow(table.rows.length);
+                    newRow.id = "results-" + vSphere;
+                    newRow.style.display = "none";
+
+                    // Create cells
+                    for (var col = 0; col < 5; col++) {
+                        cells[col] = newRow.insertCell(col);
+                        cells[col].id = vSphere + "-" + cellID[col];
+                    }
+
+                    // Dropdown for subscription term
+                    term = '<select class="form-select" aria-label="Term" id="' + vSphere + '-term">';
+                    for (var years in license.terms) {
+                        term += '<option value="' + years + '"' + (parseInt(years) === termDefault ? " selected" : "") + '>' + license.terms[years] + '</option>';
+                    }
+                    term += '</select>';
+
+                    // Placeholder price
+                    price = listPrice[vSphere][termDefault].toLocaleString('en-US') || "";
+
+                    // Populate cell data
+                    cells[0].innerHTML = license.vSphere[vSphere];
+                    cells[2].innerHTML = term;
+                    cells[3].innerHTML = '<div class="input-group"><span class="input-group-text">$</span><input type="text" id="' + vSphere + '-price" placeholder="' + price + '" class="form-control" aria-label="Amount (to the nearest dollar)"></div>';
+                }
+
+                // Create vSAN rows
+                for (var vSAN in license.vSAN) {
+                    newRow = table.insertRow(table.rows.length);
+                    newRow.id = "results-" + vSAN;
+                    newRow.style.display = "none";
+
+                    // Create cells
+                    for (var col = 0; col < 5; col++) {
+                        cells[col] = newRow.insertCell(col);
+                        cells[col].id = vSAN + "-" + cellID[col];
+                    }
+
+                    // Dropdown for subscription term
+                    term = '<select class="form-select" aria-label="Term" id="' + vSAN + '-term">';
+                    for (var years in license.terms) {
+                        term += '<option value="' + years + '"' + (parseInt(years) === termDefault ? " selected" : "") + '>' + license.terms[years] + '</option>';
+                    }
+                    term += '</select>';
+
+                    // Placeholder price
+                    price = listPrice[vSAN][termDefault].toLocaleString('en-US') || "";
+
+                    // Populate cell data
+                    cells[0].innerHTML = license.vSAN[vSAN];
+                    cells[2].innerHTML = term;
+                    cells[3].innerHTML = '<div class="input-group"><span class="input-group-text">$</span><input type="text" id="' + vSAN + '-price" placeholder="' + price + '" class="form-control" aria-label="Amount (to the nearest dollar)"></div>';
+                }
+            }
+
+            // Switch visible container
+            function switchView(container) {
+                var elemClusters = document.getElementById("containerClusters");
+                var elemResults = document.getElementById("containerResults");
+                var navFullView = document.getElementById("nav-fullview");
+                var navClusters = document.getElementById("nav-clusters");
+                var navResults = document.getElementById("nav-results");
+                // Clusters
+                if (container === "clusters") {
+                    elemClusters.style.display = "";
+                    navClusters.classList.add("active");
+                } else {
+                    elemClusters.style.display = "none";
+                    navClusters.classList.remove("active");
+                }
+                // Results
+                if (container === "results") {
+                    elemResults.style.display = "";
+                    navResults.classList.add("active");
+                } else {
+                    elemResults.style.display = "none";
+                    navResults.classList.remove("active");
+                }
+                // Full view
+                if (container === "fullview") {
+                    elemClusters.style.display = "";
+                    elemResults.style.display = "";
+                    navFullView.classList.add("active");
+                } else {
+                    navFullView.classList.remove("active");
+                }
+            }
+
+            // Variables
+            var clusters = {},
+                results = {};
+
+            // Add cluster
+            function addCluster() {
+                // Function variables
+                var clusterUUID = generateUUID();
+                clusters[clusterUUID] = {};
+                var table = document.getElementById("tableClusters").getElementsByTagName("tbody")[0];
+                var newRow = table.insertRow(table.rows.length);
+                var inputIDs = ["name", "hosts", "cpus", "cores", "vSAN", "disks", "diskSize", "lic"];
+                var cells = {};
+
+                // Generate vSAN Disks select element
+                var selectVsanDisks = '<select class="form-select" aria-label="vSAN capacity disks" id="' + clusterUUID + '-disks" disabled><option selected disabled></option>';
+                for (var index = vSAN.minDisks; index <= vSAN.maxDisks; index++) {
+                    selectVsanDisks += '<option value="' + index + '">' + index + '</option>';
+                }
+                selectVsanDisks += '</select>';
+
+                // Generate vSAN Disk Size select element
+                var selectDiskSize = '<input class="form-control" list="datalistDiskSize" placeholder="" id="' + clusterUUID + '-diskSize" disabled><datalist id="datalistDiskSize">';
+                for (var size of vSAN.diskSizes) {
+                    selectDiskSize += '<option value="' + size + '">';
+                }
+                selectDiskSize += '</datalist>';
+
+                // Generate cluster license list
+                var selectLicense = '<select class="form-select" aria-label="Cluster license" id="' + clusterUUID + '-lic"><option selected disabled value="">select</option>';
+                for (var lic in license.vSphere) {
+                    selectLicense += '<option value="' + lic + '">' + license.vSphere[lic] + '</option>';
+                }
+                selectLicense += '</select>';
+
+                // Prepare nine columns
+                for (var col = 0; col < 9; col++) {
+                    cells[col] = newRow.insertCell(col);
+                }
+
+                // Add HTML to cell
+                newRow.id = clusterUUID;
+                cells[0].innerHTML = '<input class="form-control" type="text" placeholder="vmw-' + clusterUUID.substring(0, 8) + '" aria-label="Cluster name" maxlength="80" id="' + clusterUUID + '-name">';
+                cells[1].innerHTML = '<input type="text" class="form-control" placeholder="" aria-label="Host count" length="2" maxlength="2" id="' + clusterUUID + '-hosts">';
+                cells[2].innerHTML = '<input type="text" inputmode="numeric" class="form-control" placeholder="" aria-label="CPUs/host" maxlength="1" id="' + clusterUUID + '-cpus">';
+                cells[3].innerHTML = '<input type="text" inputmode="numeric" class="form-control" placeholder="" aria-label="Cores/CPU" maxlength="2" id="' + clusterUUID + '-cores">';
+                cells[4].innerHTML = '<div class="form-check form-switch pt-1"><input style="height:1.25em;" class="form-check-input" type="checkbox" value="No" role="switch" id="' + clusterUUID + '-vSAN" onclick="toggleVsan(\'' + clusterUUID + '\');">';
+                cells[5].innerHTML = selectVsanDisks;
+                cells[6].innerHTML = selectDiskSize;
+                cells[7].innerHTML = selectLicense;
+                cells[8].innerHTML = '<button type="button" class="btn btn-danger btn-sm" onclick="javascript:delCluster(\'' + clusterUUID + '\');">X</button>';
+
+                // Add eventListeners
+                // Reject non-numeric input
+                for (var field of ["hosts", "cpus", "cores"]) {
+                    document.getElementById(clusterUUID + "-" + field).addEventListener("input", function(event) {
+                        var test = this.value.replace(/[^0-9]/g, "");
+                        if (test !== this.value) {
+                            this.value= test;
+                        }
+                    });
+                }
+                // Save values onChange
+                for (var input of inputIDs) {
+                    document.getElementById(clusterUUID + "-" + input).addEventListener("input", function() {
+                        onChange(clusterUUID);
+                    });
+                }
+            }
+
+            // Delete cluster
+            function delCluster(id) {
+                delete clusters[id];
+                var elem = document.getElementById(id);
+                elem.remove();
+                updateResults();
+            }
+
+            // Toggle vSAN
+            function toggleVsan(id, disable) {
+                var input = document.getElementById(id + "-vSAN");
+                var label = document.querySelector("label[for='" + id + "-vSAN']");
+                var disks = document.getElementById(id + "-disks");
+                var diskSize = document.getElementById(id + "-diskSize");
+                var lic = document.getElementById(id + "-lic");
+
+                // Toggle input value
+                if (input.value === "No" && !disable) {
+                    input.value = "Yes";
+                    disks.removeAttribute("disabled");
+                    diskSize.removeAttribute("disabled");
+                    // Switch to minimum vSphere license
+                    if (lic.value === "VVEP" || lic.value === "VVS") {
+                        lic.value = "VVF";
+                    }
+                } else {
+                    input.value = "No";
+                    disks.value = "";
+                    disks.setAttribute("disabled", "");
+                    diskSize.value ="";
+                    diskSize.setAttribute("disabled", "");
+                }
+            }
+
+            // Save values when input field is modified
+            function onChange(id) {
+                // Save input values to object
+                clusters[id].name = document.getElementById(id + "-name").value || "";
+                clusters[id].hosts = parseInt(document.getElementById(id + "-hosts").value) || 0;
+                clusters[id].cpus = parseInt(document.getElementById(id + "-cpus").value) || 0;
+                clusters[id].cores = parseInt(document.getElementById(id + "-cores").value) || 0;
+                clusters[id].vsan = document.getElementById(id + "-vSAN").value || "";
+                clusters[id].disks = parseInt(document.getElementById(id + "-disks").value) || 0;
+                clusters[id].diskSize = document.getElementById(id + "-diskSize").value || "";
+                clusters[id].lic = document.getElementById(id + "-lic").value || "";
+
+                // Disable vSAN if minimum license not chosen
+                if (clusters[id].vsan === "Yes" && (clusters[id].lic === "VVEP" || clusters[id].lic === "VVS")) {
+                    clusters[id].vsan = "No";
+                    document.getElementById(id + "-vSAN").click();
+                    toggleVsan(id, true);
+                }
+
+                // Check VMware vSphere Essentials Plus minimmums
+                if (clusters[id].lic === "VVEP") {
+                    if (clusters[id].hosts > 3 || (clusters[id].hosts * clusters[id].cpus * clusters[id].cores) > 96) {
+                        document.getElementById(id + "-lic").value = "VVS";
+                        clusters[id].lic = "VVS";
+                    }
+                }
+
+                // Update results table
+                updateResults();
+            }
+
+            function updateResults() {
+                var licenses = {};
+                var lic,
+                    hosts,
+                    cpus,
+                    cores,
+                    cost,
+                    subtotal,
+                    vSANembedded;
+                var vSANlicensed = 0;
+                var vSANrequired = 0;
+
+                // Calculate values
+                for (var cluster in clusters) {
+                    lic = clusters[cluster].lic;
+                    hosts = clusters[cluster].hosts || 0;
+                    cpus = clusters[cluster].cpus || 0;
+                    cores = clusters[cluster].cores || 0;
+                    vsan = clusters[cluster].vsan || "No";
+                    disks = clusters[cluster].disks || 0;
+                    // Disk size: [label, capacity, unit]
+                    diskSize = (typeof clusters[cluster].diskSize !== "undefined") ? clusters[cluster].diskSize.match(/(\d+\.?\d*) *([A-Za-z][Bb])/) : [0, 0, "TB"];
+                    
+                    // vSphere
+                    if (typeof lic !== "undefined" && lic !== "") {
+                        // If NaN, set to zero
+                        if (typeof licenses[lic] !== "number") {
+                            licenses[lic] = 0;
+                        }
+                        licenses[lic] += hosts * cpus * Math.max(license.minCores, cores);
+                    }
+
+                    // vSAN
+                    // Calculate available vSAN licensing from cores
+                    if (typeof vSAN.embeddedTiB[lic] !== "undefined") {
+                        // If VCF, add the vSAN capacity/core to the aggregate
+                        if (lic === "VCF") {
+                            vSANlicensed += hosts * cpus * Math.max(license.minCores, cores) * vSAN.embeddedTiB[lic];
+                        } else if (lic === "VVF") {
+                            // If VVF, the vSAN capacity/core is only local to the custer
+                            vSANembedded = hosts * cpus * Math.max(license.minCores, cores) * vSAN.embeddedTiB[lic];
+                        }
+                    }
+                    // Calculate cluster vSAN raw capacity
+                    if (vsan === "Yes") {
+                        // Convert GB to TB
+                        if (diskSize !== null && diskSize[2] === "GB") {
+                            diskSize[1] = parseFloat(diskSize[1]) / 1000;
+                            diskSize[2] = "TB";
+                        }
+                        if (diskSize !== null && typeof diskSize[1] !== "undefined") {
+                            vSANcapacity = convertTBtoTiB(hosts * disks * diskSize[1]);
+                        }
+                        // If VVF and the embedded capacity/core is insufficient, add the raw capacity to the vSANrequired
+                        if (lic === "VVF" && vSANcapacity > vSANembedded) {
+                            vSANrequired += Math.ceil(vSANcapacity);
+                        }
+                    }
+                }
+                licenses.vSAN = vSANrequired - vSANlicensed;
+
+                // Update values
+                for (var option in licenses) {
+                    cost = parseInt(document.getElementById(option + "-price").value.replace(",", "")) || parseInt(document.getElementById(option + "-price").placeholder.replace(",", "")) || 0;
+                    subtotal = cost * licenses[option];
+                    document.getElementById(option + "-qty").innerHTML = licenses[option];
+                    document.getElementById(option + "-subtotal").innerHTML = "$ " + subtotal.toLocaleString('en-US');
+                }
+
+                // Show/hide rows
+                var table = document.getElementById("tableResults").getElementsByTagName("tbody")[0];
+                var rows = table.getElementsByTagName("tr");
+                var id,
+                    row;
+                for (var i = 0; i < rows.length; i++) {
+                    id = rows[i].id.replace("results-", "");
+                    row = document.getElementById(rows[i].id);
+                    if (typeof licenses[id] !== "undefined" && licenses[id] > 0) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                }
+            }
+
+            // Generate UUID
+            function generateUUID() {
+                var d = new Date().getTime();
+                var d2 = ((typeof performance !== 'undefined') && performance.now && (performance.now()*1000)) || 0;
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16;
+                    if(d > 0){
+                        r = (d + r)%16 | 0;
+                        d = Math.floor(d/16);
+                    } else {
+                        r = (d2 + r)%16 | 0;
+                        d2 = Math.floor(d2/16);
+                    }
+                    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                });
+            }
+
+            // Convert capacity units
+            function convertTBtoTiB(terabytes) {
+                var bytes = terabytes * Math.pow(10, 12);
+                var tebibytes = bytes / Math.pow(1024, 4);
+                return parseFloat(tebibytes.toFixed(2));
+            }
+
+            // Add eventListeners
+            // Toggle theme button
+            document.getElementById("bd-theme").addEventListener("click", ()=> {
+                toggleTheme();
+            });
+
+            // Add cluster
+            document.getElementById("btnAddCluster").addEventListener("click", ()=> {
+                addCluster();
+            });
+        </script>
+    </body>
+
+</html>
