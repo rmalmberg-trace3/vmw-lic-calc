@@ -461,7 +461,8 @@
                     cores,
                     term,
                     cost,
-                    subtotal;
+                    subtotal,
+                    vSANcapacity;
                 var vSANembedded = 0;
                 var vSANlicensed = 0;
                 var vSANrequired = 0;
@@ -508,8 +509,12 @@
                             vSANcapacity = convertTBtoTiB(hosts * disks * diskSize[1]);
                         }
                         // If VVF and the embedded capacity/core is insufficient, add the raw capacity to the vSANrequired
-                        if (lic === "VVF" && typeof vSANcapacity !== "undefined" && vSANcapacity > vSANembedded) {
-                            vSANrequired += Math.ceil(vSANcapacity);
+                        if (typeof vSANcapacity !== "undefined") {
+                            if (lic === "VVF" && vSANcapacity < vSANembedded) {
+                                // Do nothing; embedded vSAN licenses cover required capacity for this cluster
+                            } else {
+                                vSANrequired += Math.ceil(vSANcapacity);
+                            }
                         }
                     }
                 }
