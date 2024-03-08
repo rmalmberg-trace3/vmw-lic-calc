@@ -3,6 +3,8 @@
 
     <head>
         <script type="text/javascript">
+            var version = "0.1.3";
+
             // vSAN minimum, maximums, and available disk sizes
             var vSAN = {
                 maxDisks: 24,
@@ -142,6 +144,12 @@
                     </thead>
                     <tbody>
                     </tbody>
+                    <tfoot>
+                        <tr>
+                            <td class="fs-5 text-end bg-secondary-subtle" colspan="4">Total</td>
+                            <td class="fs-5 bg-secondary-subtle" id="results-Total"></td>
+                        </tr>
+                    </tfoot>
                 </table>
               </div>
         </div>
@@ -210,7 +218,8 @@
                 var term;
                 var termDefault = parseInt(Object.keys(license.terms).pop());
                 var price,
-                    newRow;
+                    newRow,
+                    totalRow;
 
                 // Create vSphere rows
                 for (var vSphere in license.vSphere) {
@@ -463,6 +472,7 @@
                     cost,
                     subtotal,
                     vSANcapacity;
+                var total = 0;
                 var vSANembedded = 0;
                 var vSANlicensed = 0;
                 var vSANrequired = 0;
@@ -526,9 +536,11 @@
                     document.getElementById(option + "-price").placeholder = listPrice[option][term] || "";
                     cost = parseInt(document.getElementById(option + "-price").value.replace(",", "")) || parseInt(document.getElementById(option + "-price").placeholder.replace(",", "")) || 0;
                     subtotal = cost * licenses[option];
+                    total += subtotal;
                     document.getElementById(option + "-qty").innerHTML = licenses[option].toLocaleString('en-US');
                     document.getElementById(option + "-subtotal").innerHTML = "$ " + subtotal.toLocaleString('en-US');
                 }
+                document.getElementById("results-Total").innerHTML = "$ " + total.toLocaleString('en-US');
 
                 // Show/hide rows
                 var table = document.getElementById("tableResults").getElementsByTagName("tbody")[0];
