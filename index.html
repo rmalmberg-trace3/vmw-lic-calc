@@ -8,9 +8,18 @@
                 maxDisks: 24,
                 minDisks: 2,
                 diskSizes: [
+                    "240GB",
+                    "480GB",
+                    "960GB",
+                    "1.6TB",
+                    "1.8TB",
                     "1.92TB",
+                    "2.4TB",
+                    "3.2TB",
                     "3.84TB", 
-                    "7.68TB"
+                    "7.68TB",
+                    "8TB",
+                    "15.36TB"
                 ],
                 embeddedTiB: {
                     VCF: 1,
@@ -89,7 +98,7 @@
                     <li class="nav-item mx-1"><a id="nav-fullview" href="javascript:switchView('fullview');" class="nav-link active" aria-current="page">Full View</a></li>
                     <li class="nav-item mx-1"><a id="nav-clusters" href="javascript:switchView('clusters');" class="nav-link" aria-current="page">Clusters</a></li>
                     <li class="nav-item mx-1"><a id="nav-results" href="javascript:switchView('results');" class="nav-link">Results</a></li>
-                    <li class="nav-item mx-1"><a href="#" class="nav-link bg-secondary-subtle">Import Saved</a></li>
+                    <!--<li class="nav-item mx-1"><a href="#" class="nav-link bg-secondary-subtle">Import Saved</a></li>-->
                 </ul>
             </header>
         </div>
@@ -229,6 +238,14 @@
                     cells[0].innerHTML = license.vSphere[vSphere];
                     cells[2].innerHTML = term;
                     cells[3].innerHTML = '<div class="input-group"><span class="input-group-text">$</span><input type="text" id="' + vSphere + '-price" placeholder="' + price + '" class="form-control" aria-label="Amount (to the nearest dollar)"></div>';
+
+                    // Add eventListeners for changes
+                    document.getElementById(vSphere + "-term").addEventListener("input", function() {
+                        updateResults();
+                    });
+                    document.getElementById(vSphere + "-price").addEventListener("input", function() {
+                        updateResults();
+                    });
                 }
 
                 // Create vSAN rows
@@ -257,6 +274,14 @@
                     cells[0].innerHTML = license.vSAN[vSAN];
                     cells[2].innerHTML = term;
                     cells[3].innerHTML = '<div class="input-group"><span class="input-group-text">$</span><input type="text" id="' + vSAN + '-price" placeholder="' + price + '" class="form-control" aria-label="Amount (to the nearest dollar)"></div>';
+
+                    // Add eventListeners for changes
+                    document.getElementById("vSAN-term").addEventListener("input", function() {
+                        updateResults();
+                    });
+                    document.getElementById("vSAN-price").addEventListener("input", function() {
+                        updateResults();
+                    });
                 }
             }
 
@@ -434,9 +459,10 @@
                     hosts,
                     cpus,
                     cores,
+                    term,
                     cost,
-                    subtotal,
-                    vSANembedded;
+                    subtotal;
+                var vSANembedded = 0;
                 var vSANlicensed = 0;
                 var vSANrequired = 0;
 
@@ -482,7 +508,7 @@
                             vSANcapacity = convertTBtoTiB(hosts * disks * diskSize[1]);
                         }
                         // If VVF and the embedded capacity/core is insufficient, add the raw capacity to the vSANrequired
-                        if (lic === "VVF" && vSANcapacity > vSANembedded) {
+                        if (lic === "VVF" && typeof vSANcapacity !== "undefined" && vSANcapacity > vSANembedded) {
                             vSANrequired += Math.ceil(vSANcapacity);
                         }
                     }
@@ -491,9 +517,11 @@
 
                 // Update values
                 for (var option in licenses) {
+                    term = parseInt(document.getElementById(option + "-term").value);
+                    document.getElementById(option + "-price").placeholder = listPrice[option][term] || "";
                     cost = parseInt(document.getElementById(option + "-price").value.replace(",", "")) || parseInt(document.getElementById(option + "-price").placeholder.replace(",", "")) || 0;
                     subtotal = cost * licenses[option];
-                    document.getElementById(option + "-qty").innerHTML = licenses[option];
+                    document.getElementById(option + "-qty").innerHTML = licenses[option].toLocaleString('en-US');
                     document.getElementById(option + "-subtotal").innerHTML = "$ " + subtotal.toLocaleString('en-US');
                 }
 
