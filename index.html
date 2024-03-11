@@ -3,7 +3,7 @@
 
     <head>
         <script type="text/javascript">
-            var version = "0.1.3";
+            var version = "0.1.5";
 
             // vSAN minimum, maximums, and available disk sizes
             var vSAN = {
@@ -111,6 +111,7 @@
                 <table class="table" id="tableClusters">
                     <thead>
                     <tr>
+                        <th scope="col">vCenter</th>
                         <th scope="col">Cluster Name</th>
                         <th scope="col">Hosts</th>
                         <th scope="col">CPUs/host</th>
@@ -338,7 +339,7 @@
                 clusters[clusterUUID] = {};
                 var table = document.getElementById("tableClusters").getElementsByTagName("tbody")[0];
                 var newRow = table.insertRow(table.rows.length);
-                var inputIDs = ["name", "hosts", "cpus", "cores", "vSAN", "disks", "diskSize", "lic"];
+                var inputIDs = ["vcenter", "name", "hosts", "cpus", "cores", "vSAN", "disks", "diskSize", "lic"];
                 var cells = {};
 
                 // Generate vSAN Disks select element
@@ -362,22 +363,23 @@
                 }
                 selectLicense += '</select>';
 
-                // Prepare nine columns
-                for (var col = 0; col < 9; col++) {
+                // Prepare ten columns
+                for (var col = 0; col < 10; col++) {
                     cells[col] = newRow.insertCell(col);
                 }
 
                 // Add HTML to cell
                 newRow.id = clusterUUID;
-                cells[0].innerHTML = '<input class="form-control" type="text" placeholder="vmw-' + clusterUUID.substring(0, 8) + '" aria-label="Cluster name" maxlength="80" id="' + clusterUUID + '-name">';
-                cells[1].innerHTML = '<input type="text" class="form-control" placeholder="" aria-label="Host count" length="2" maxlength="2" id="' + clusterUUID + '-hosts">';
-                cells[2].innerHTML = '<input type="text" inputmode="numeric" class="form-control" placeholder="" aria-label="CPUs/host" maxlength="1" id="' + clusterUUID + '-cpus">';
-                cells[3].innerHTML = '<input type="text" inputmode="numeric" class="form-control" placeholder="" aria-label="Cores/CPU" maxlength="2" id="' + clusterUUID + '-cores">';
-                cells[4].innerHTML = '<div class="form-check form-switch pt-1"><input style="height:1.25em;" class="form-check-input" type="checkbox" value="No" role="switch" id="' + clusterUUID + '-vSAN" onclick="toggleVsan(\'' + clusterUUID + '\');">';
-                cells[5].innerHTML = selectVsanDisks;
-                cells[6].innerHTML = selectDiskSize;
-                cells[7].innerHTML = selectLicense;
-                cells[8].innerHTML = '<button type="button" class="btn btn-danger btn-sm" onclick="javascript:delCluster(\'' + clusterUUID + '\');">X</button>';
+                cells[0].innerHTML = '<input class="form-control" type="text" placeholder="01" aria-label="vCenter" maxlength="80" id="' + clusterUUID + '-vcenter">';
+                cells[1].innerHTML = '<input class="form-control" type="text" placeholder="vmw-' + clusterUUID.substring(0, 8) + '" aria-label="Cluster name" maxlength="80" id="' + clusterUUID + '-name">';
+                cells[2].innerHTML = '<input type="text" class="form-control" placeholder="" aria-label="Host count" length="2" maxlength="2" id="' + clusterUUID + '-hosts">';
+                cells[3].innerHTML = '<input type="text" inputmode="numeric" class="form-control" placeholder="" aria-label="CPUs/host" maxlength="1" id="' + clusterUUID + '-cpus">';
+                cells[4].innerHTML = '<input type="text" inputmode="numeric" class="form-control" placeholder="" aria-label="Cores/CPU" maxlength="2" id="' + clusterUUID + '-cores">';
+                cells[5].innerHTML = '<div class="form-check form-switch pt-1"><input style="height:1.25em;" class="form-check-input" type="checkbox" value="No" role="switch" id="' + clusterUUID + '-vSAN" onclick="toggleVsan(\'' + clusterUUID + '\');">';
+                cells[6].innerHTML = selectVsanDisks;
+                cells[7].innerHTML = selectDiskSize;
+                cells[8].innerHTML = selectLicense;
+                cells[9].innerHTML = '<button type="button" class="btn btn-danger btn-sm" onclick="javascript:delCluster(\'' + clusterUUID + '\');">X</button>';
 
                 // Add eventListeners
                 // Reject non-numeric input
@@ -434,7 +436,8 @@
             // Save values when input field is modified
             function onChange(id) {
                 // Save input values to object
-                clusters[id].name = document.getElementById(id + "-name").value || "";
+                clusters[id].name = document.getElementById(id + "-name").value || document.getElementById(id + "-name").placeholder || "";
+                clusters[id].vcenter = document.getElementById(id + "-vcenter").value || document.getElementById(id + "-vcenter").placeholder || "";
                 clusters[id].hosts = parseInt(document.getElementById(id + "-hosts").value) || 0;
                 clusters[id].cpus = parseInt(document.getElementById(id + "-cpus").value) || 0;
                 clusters[id].cores = parseInt(document.getElementById(id + "-cores").value) || 0;
@@ -471,14 +474,27 @@
                     term,
                     cost,
                     subtotal,
-                    vSANcapacity;
+                    vSANcapacity,
+                    vSANembedded;
+                var vCenters = {};
                 var total = 0;
-                var vSANembedded = 0;
-                var vSANlicensed = 0;
-                var vSANrequired = 0;
+
+                // Build object of vCenter Servers
+                for (var i in clusters) {
+                    var vcenterID = clusters[i].vcenter;
+                    if (typeof vCenters[vcenterID] !== "object") {
+                        vCenters[vcenterID] = {
+                            VCFvSANembedded: 0,
+                            VCFvSANrequired: 0,
+                        };
+                    }
+                }
 
                 // Calculate values
                 for (var cluster in clusters) {
+                    vSANcapacity = 0;
+                    vSANembedded = 0;
+                    vcenter = clusters[cluster].vcenter;
                     lic = clusters[cluster].lic;
                     hosts = clusters[cluster].hosts || 0;
                     cpus = clusters[cluster].cpus || 0;
@@ -486,7 +502,7 @@
                     vsan = clusters[cluster].vsan || "No";
                     disks = clusters[cluster].disks || 0;
                     // Disk size: [label, capacity, unit]
-                    diskSize = (typeof clusters[cluster].diskSize !== "undefined") ? clusters[cluster].diskSize.match(/(\d+\.?\d*) *([A-Za-z][Bb])/) : [0, 0, "TB"];
+                    diskSize = (typeof clusters[cluster].diskSize !== "undefined" ? clusters[cluster].diskSize.match(/(\d+\.?\d*) *([A-Za-z][Bb])/) : [0, 0, "TB"]);
                     
                     // vSphere
                     if (typeof lic !== "undefined" && lic !== "") {
@@ -502,13 +518,16 @@
                     if (typeof vSAN.embeddedTiB[lic] !== "undefined") {
                         // If VCF, add the vSAN capacity/core to the aggregate
                         if (lic === "VCF") {
-                            vSANlicensed += hosts * cpus * Math.max(license.minCores, cores) * vSAN.embeddedTiB[lic];
+                            vCenters[vcenter].VCFvSANembedded += hosts * cpus * Math.max(license.minCores, cores) * vSAN.embeddedTiB[lic];
                         } else if (lic === "VVF") {
                             // If VVF, the vSAN capacity/core is only local to the custer
                             vSANembedded = hosts * cpus * Math.max(license.minCores, cores) * vSAN.embeddedTiB[lic];
                         }
                     }
                     // Calculate cluster vSAN raw capacity
+                    if (typeof licenses.vSAN === "undefined") {
+                        licenses.vSAN = 0;
+                    }
                     if (vsan === "Yes") {
                         // Convert GB to TB
                         if (diskSize !== null && diskSize[2] === "GB") {
@@ -518,17 +537,22 @@
                         if (diskSize !== null && typeof diskSize[1] !== "undefined") {
                             vSANcapacity = convertTBtoTiB(hosts * disks * diskSize[1]);
                         }
-                        // If VVF and the embedded capacity/core is insufficient, add the raw capacity to the vSANrequired
-                        if (typeof vSANcapacity !== "undefined") {
+                        // If VCF, calculate the required capacity and add to aggregate of the vCenter
+                        if (lic === "VCF") {
+                            vCenters[vcenter].VCFvSANrequired += vSANcapacity;
+                        } else {
                             if (lic === "VVF" && vSANcapacity < vSANembedded) {
                                 // Do nothing; embedded vSAN licenses cover required capacity for this cluster
                             } else {
-                                vSANrequired += Math.ceil(vSANcapacity);
+                                licenses.vSAN += Math.ceil(vSANcapacity);
                             }
                         }
                     }
                 }
-                licenses.vSAN = vSANrequired - vSANlicensed;
+                // Calculate the aggregate delta in capacity for vCenters with VCF
+                for (var v in vCenters) {
+                    licenses.vSAN += Math.max(Math.ceil(vCenters[v].VCFvSANrequired - vCenters[v].VCFvSANembedded), 0);
+                }
 
                 // Update values
                 for (var option in licenses) {
