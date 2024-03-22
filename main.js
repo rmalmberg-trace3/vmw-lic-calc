@@ -1,4 +1,4 @@
-var version = "0.2.2";
+var version = "0.2.3";
 
 // vSAN minimum, maximums, and available disk sizes
 var vSAN = {
@@ -111,12 +111,16 @@ function onLoad() {
         toggleTheme();
     }
 
-    // Add bottom padding to <main> to avoid <footer> hiding content
+    // Add bottom padding to <main> to avoid <header> and <footer> hiding content
+    var elemNavbar = document.getElementById('navbar');
+    var navbarHeight = parseInt(elemNavbar.offsetHeight);
     var elemFooter = document.getElementById('footer');
     var footerHeight = parseInt(elemFooter.offsetHeight);
     var footerMarginTop = parseInt(window.getComputedStyle(elemFooter).marginTop);
     var footerMarginBottom = parseInt(window.getComputedStyle(elemFooter).marginBottom);
-    document.querySelector('main').style.paddingBottom = (footerHeight + footerMarginTop + footerMarginBottom) + 'px';
+    var elemMain = document.querySelector('main');
+    elemMain.style.paddingTop = (navbarHeight + 5) + 'px';
+    elemMain.style.paddingBottom = (footerHeight + footerMarginTop + footerMarginBottom) + 'px';
 
     // Add listeners for navigation
     document.getElementById("nav-fullview").addEventListener("click", function() {
@@ -399,6 +403,7 @@ function onChange(id) {
 }
 
 function updateResults() {
+    var prevTotal = parseInt(document.getElementById("results-Total").innerHTML.replace(/[^\d]/g, ''));
     var licenses = {};
     var lic,
         hosts,
@@ -530,6 +535,36 @@ function updateResults() {
         totalRow.style.display = "";
     } else {
         totalRow.style.display = "none";
+    }
+
+    // Display toast
+    try {
+        if (prevTotal !== total && typeof prevTotal !== "undefined" && prevTotal !== 0 && typeof total !== "undefined" && total !== 0) {
+            var toastBeforeAfter = document.getElementById('toastBeforeAfter');
+            var toastBeforeAfterBody = document.getElementById('toastBeforeAfterBody');
+            // Calculate bottom margin based on <footer>
+            var elemFooter = document.getElementById('footer');
+            var footerHeight = parseInt(elemFooter.offsetHeight);
+            var footerMarginTop = parseInt(window.getComputedStyle(elemFooter).marginTop);
+            var footerMarginBottom = parseInt(window.getComputedStyle(elemFooter).marginBottom);
+            toastBeforeAfter.style.marginBottom = (footerHeight + footerMarginTop + footerMarginBottom) + 'px';
+            // Pick font color
+            var fontColor = "";
+            if (total > prevTotal) {
+                fontColor = "text-danger-emphasis";
+            } else if (total < prevTotal) {
+                fontColor = "text-success-emphasis";
+            }
+            // Update content
+            var stringBefore = "Previously: $ " + prevTotal.toLocaleString('en-US');
+            var stringAfter = "Now: $ " + total.toLocaleString('en-US');
+            toastBeforeAfterBody.innerHTML = "<h4 class='" + fontColor + "'>" + stringAfter + "</h4><h6><small>" + stringBefore + "</small></h6>";
+
+            var toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastBeforeAfter);
+            toastBootstrap.show();
+        }
+    } catch (err) {
+        // Do nothing
     }
 }
 
