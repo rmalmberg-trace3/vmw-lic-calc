@@ -1,4 +1,4 @@
-var version = "0.2.3";
+var version = "0.2.4";
 
 // vSAN minimum, maximums, and available disk sizes
 var vSAN = {
